@@ -166,7 +166,7 @@
                         <select id="kasYearSelect" onchange="handleYearChange()" class="bg-slate-100 border border-slate-300 text-slate-800 text-sm font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                             <!-- Options generated dynamically -->
                         </select>
-                        <button onclick="markAllCurrentMonth()" class="admin-only hidden px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5">
+                        <button id="btnMarkCurrentMonth" onclick="markAllCurrentMonth()" class="admin-only hidden px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5">
                             <i class="fa-solid fa-check-double"></i> Centang Bulan Ini (Semua)
                         </button>
                     </div>
@@ -578,6 +578,8 @@
         let currentReceiptBase64 = null;
         let editingTransactionId = null;
 
+        const monthNamesIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
         window.getAcademicMonths = function(startYearStr) {
             const startY = parseInt(startYearStr || defaultTaStartYear, 10);
             const endY = startY + 1;
@@ -631,7 +633,7 @@
             return "Rp " + Number(val || 0).toLocaleString('id-ID');
         }
 
-        /* Handle Receipt Image Upload & Ultra Light Compression */
+        /* Handle Receipt Image Upload & Ultra Light Compression (350px Max) */
         window.handleReceiptUpload = function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -712,6 +714,13 @@
                 document.getElementById('cardRate').innerText = formatRp(window.settings.kasRate);
             }
 
+            // Update Dynamic Month Button Text
+            const btnMark = document.getElementById('btnMarkCurrentMonth');
+            if (btnMark) {
+                const curMonthName = monthNamesIndo[currentSystemMonth];
+                btnMark.innerHTML = `<i class="fa-solid fa-check-double"></i> Centang ${curMonthName} (Semua)`;
+            }
+
             populateYearSelect();
 
             let totalKasIncome = 0;
@@ -784,7 +793,7 @@
                 academicMonths.forEach((mObj) => {
                     const pay = window.findPayment(student.id, mObj.year, mObj.idx);
                     const paid = !!pay;
-                    if (paid) studentTaTotal += Number(pay.amount);
+                    if (paid) studentTaTotal += Number(pay.amount || 0);
 
                     const btnClass = paid 
                         ? "bg-emerald-500 text-white font-bold" 
@@ -870,12 +879,12 @@
 
                 sem1Months.forEach(m => {
                     const pay = window.findPayment(student.id, m.year, m.idx);
-                    if (pay) { sem1Paid++; totalAmount += Number(pay.amount); }
+                    if (pay) { sem1Paid++; totalAmount += Number(pay.amount || 0); }
                 });
 
                 sem2Months.forEach(m => {
                     const pay = window.findPayment(student.id, m.year, m.idx);
-                    if (pay) { sem2Paid++; totalAmount += Number(pay.amount); }
+                    if (pay) { sem2Paid++; totalAmount += Number(pay.amount || 0); }
                 });
 
                 const totalPaidMonths = sem1Paid + sem2Paid;
@@ -934,7 +943,7 @@
                 let totalKasTa = 0;
                 window.payments.forEach(p => {
                     if (validYears.includes(String(p.academicYear))) {
-                        totalKasTa += Number(p.amount);
+                        totalKasTa += Number(p.amount || 0);
                     }
                 });
 
@@ -1152,7 +1161,7 @@
 
         window.openWhatsAppModal = function() {
             let totalKas = 0;
-            window.payments.forEach(p => { totalKas += Number(p.amount); });
+            window.payments.forEach(p => { totalKas += Number(p.amount || 0); });
 
             let otherIn = 0, totalOut = 0;
             window.transactions.forEach(t => {
@@ -1333,22 +1342,40 @@
         const getColRef = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
         const getDocRef = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
 
-        /* Log action helper with Auto-Generated Doc ID */
+        /* Chunking Helper for Large Batches (Max 400 operations per chunk) */
+        async function commitInChunks(operations, chunkSize = 400) {
+            for (let i = 0; i < operations.length; i += chunkSize) {
+                const chunk = operations.slice(i, i + chunkSize);
+                const batch = writeBatch(db);
+                chunk.forEach(op => {
+                    if (op.type === 'set') {
+                        batch.set(op.ref, op.data, op.options || {});
+                    } else if (op.type === 'delete') {
+                        batch.delete(op.ref);
+                    }
+                });
+                await batch.commit();
+            }
+        }
+
+        /* Log action helper with Auto-Generated Doc ID & Full Datetime Format */
         async function logAudit(action, details) {
             if (!db) return;
             try {
                 const logsCol = getColRef('audit_logs');
                 const newLogDoc = doc(logsCol);
+                const now = new Date();
+                const formattedTime = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('id-ID');
                 await setDoc(newLogDoc, {
                     id: newLogDoc.id,
                     action: action,
                     details: details,
-                    timestamp: new Date().toLocaleTimeString('id-ID')
+                    timestamp: formattedTime
                 });
             } catch (e) { console.warn('Audit error', e); }
         }
 
-        /* 1. Toggle Kas Payment Per Document (Atomic Transaction) */
+        /* 1. Toggle Kas Payment Per Document (Atomic Firestore Transaction) */
         window.toggleKas = async function(studentId, targetYear, monthIdx) {
             if (!window.isAdmin || !db) return;
             const payId = `pay_${studentId}_${targetYear}_${monthIdx}`;
@@ -1382,7 +1409,7 @@
             }
         };
 
-        /* 2. Mark All Active Students for Current Calendar Month (Batch Write) */
+        /* 2. Mark All Active Students for Current Calendar Month (Fetch Fresh Cloud Data First) */
         window.markAllCurrentMonth = async function() {
             if (!window.isAdmin || !db) return;
             try {
@@ -1390,33 +1417,42 @@
                 const currentCalMonthIdx = now.getMonth();
                 const activeStudents = window.students.filter(s => s.active !== false);
 
-                const batch = writeBatch(db);
+                // Fetch current payments from Firestore directly for safety
+                const paymentsSnap = await getDocs(getColRef('payments'));
+                const existingPayIds = new Set();
+                paymentsSnap.forEach(d => existingPayIds.add(d.id));
+
+                const operations = [];
                 let addedCount = 0;
 
                 for (const st of activeStudents) {
                     const payId = `pay_${st.id}_${window.currentTaStartYear}_${currentCalMonthIdx}`;
-                    if (!window.findPayment(st.id, window.currentTaStartYear, currentCalMonthIdx)) {
-                        const payRef = getDocRef('payments', payId);
-                        batch.set(payRef, {
-                            id: payId,
-                            studentId: st.id,
-                            academicYear: String(window.currentTaStartYear),
-                            monthIdx: currentCalMonthIdx,
-                            amount: Number(window.settings.kasRate),
-                            paidAt: new Date().toISOString()
+                    if (!existingPayIds.has(payId)) {
+                        operations.push({
+                            type: 'set',
+                            ref: getDocRef('payments', payId),
+                            data: {
+                                id: payId,
+                                studentId: st.id,
+                                academicYear: String(window.currentTaStartYear),
+                                monthIdx: currentCalMonthIdx,
+                                amount: Number(window.settings.kasRate),
+                                paidAt: new Date().toISOString()
+                            }
                         });
                         addedCount++;
                     }
                 }
 
                 if (addedCount > 0) {
-                    await batch.commit();
+                    await commitInChunks(operations);
                     await logAudit("CENTANG_SEMUA", `Menandai ${addedCount} siswa lunas`);
                     window.showToast(`Berhasil mencentang ${addedCount} siswa bulan ini!`);
                 } else {
                     window.showToast("Semua siswa aktif sudah mencatatkan setoran bulan ini.");
                 }
             } catch (e) {
+                console.error(e);
                 window.showToast("Gagal mencentang otomatis.", true);
             }
         };
@@ -1599,7 +1635,7 @@
             }
         };
 
-        /* 10. Sync Whole State with Batch Delete & Write */
+        /* 10. Sync Whole State with Chunked Delete & Write (Anti 500 Limit) */
         window.syncWholeStateToFirestore = async function() {
             if (!db) return;
             try {
@@ -1609,18 +1645,22 @@
                     getDocs(getColRef('transactions'))
                 ]);
 
-                const batch = writeBatch(db);
+                const operations = [];
 
-                oldStudentsSnap.forEach(d => batch.delete(d.ref));
-                oldPaymentsSnap.forEach(d => batch.delete(d.ref));
-                oldTransactionsSnap.forEach(d => batch.delete(d.ref));
+                // Delete operations
+                oldStudentsSnap.forEach(d => operations.push({ type: 'delete', ref: d.ref }));
+                oldPaymentsSnap.forEach(d => operations.push({ type: 'delete', ref: d.ref }));
+                oldTransactionsSnap.forEach(d => operations.push({ type: 'delete', ref: d.ref }));
 
-                batch.set(getDocRef('settings', 'config'), window.settings, { merge: true });
-                for (const s of window.students) batch.set(getDocRef('students', s.id), s);
-                for (const p of window.payments) batch.set(getDocRef('payments', p.id), p);
-                for (const t of window.transactions) batch.set(getDocRef('transactions', t.id), t);
+                // Set operations
+                operations.push({ type: 'set', ref: getDocRef('settings', 'config'), data: window.settings, options: { merge: true } });
+                for (const s of window.students) operations.push({ type: 'set', ref: getDocRef('students', s.id), data: s });
+                for (const p of window.payments) operations.push({ type: 'set', ref: getDocRef('payments', p.id), data: p });
+                for (const t of window.transactions) operations.push({ type: 'set', ref: getDocRef('transactions', t.id), data: t });
 
-                await batch.commit();
+                // Commit in safe chunks of 400 operations
+                await commitInChunks(operations, 400);
+
                 await logAudit("RESTORE_JSON", "Memulihkan & menimpa data Cloud dari file JSON");
                 window.showToast("Data Cloud berhasil dipulihkan total!");
             } catch (e) {
