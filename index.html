@@ -631,6 +631,7 @@
             return "Rp " + Number(val || 0).toLocaleString('id-ID');
         }
 
+        /* Handle Receipt Image Upload & Ultra Light Compression */
         window.handleReceiptUpload = function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -640,8 +641,8 @@
                 const img = new Image();
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 500;
-                    const MAX_HEIGHT = 500;
+                    const MAX_WIDTH = 350;
+                    const MAX_HEIGHT = 350;
                     let width = img.width;
                     let height = img.height;
 
@@ -662,7 +663,8 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    currentReceiptBase64 = canvas.toDataURL('image/jpeg', 0.5);
+                    // Compress to lightweight JPEG Base64 (~15-20KB max)
+                    currentReceiptBase64 = canvas.toDataURL('image/jpeg', 0.4);
                     document.getElementById('receiptPreviewImg').src = currentReceiptBase64;
                     document.getElementById('receiptPreviewContainer').classList.remove('hidden');
                 };
@@ -714,7 +716,7 @@
 
             let totalKasIncome = 0;
             window.payments.forEach(p => {
-                totalKasIncome += Number(p.amount || window.settings.kasRate);
+                totalKasIncome += Number(p.amount || 0);
             });
 
             let otherIncome = 0;
@@ -768,7 +770,7 @@
             const sem2Header = document.getElementById('sem2HeaderTitle');
             if (sem2Header) sem2Header.innerText = `SEMESTER 2 (JANUARI - JUNI ${endY})`;
 
-            // Display active students or students with historical payments
+            // Display active students
             const activeStudents = window.students.filter(s => s.active !== false);
 
             activeStudents.forEach((student, index) => {
@@ -1312,7 +1314,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot, runTransaction, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const DEFAULT_FIREBASE_CONFIG = {
             apiKey: "AIzaSyA_m1j8cr4XCEqvkcRcf1_ZZ7vjLSB1fQs",
@@ -1331,14 +1333,14 @@
         const getColRef = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
         const getDocRef = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
 
-        /* Log action helper */
+        /* Log action helper with Auto-Generated Doc ID */
         async function logAudit(action, details) {
             if (!db) return;
             try {
-                const logId = `log_${Date.now()}`;
-                const logRef = getDocRef('audit_logs', logId);
-                await setDoc(logRef, {
-                    id: logId,
+                const logsCol = getColRef('audit_logs');
+                const newLogDoc = doc(logsCol);
+                await setDoc(newLogDoc, {
+                    id: newLogDoc.id,
                     action: action,
                     details: details,
                     timestamp: new Date().toLocaleTimeString('id-ID')
@@ -1346,73 +1348,88 @@
             } catch (e) { console.warn('Audit error', e); }
         }
 
-        /* 1. Toggle Kas Payment Per Document (Atomic Write) */
+        /* 1. Toggle Kas Payment Per Document (Atomic Transaction) */
         window.toggleKas = async function(studentId, targetYear, monthIdx) {
             if (!window.isAdmin || !db) return;
+            const payId = `pay_${studentId}_${targetYear}_${monthIdx}`;
+            const payRef = getDocRef('payments', payId);
+
             try {
-                const existingPay = window.findPayment(studentId, targetYear, monthIdx);
-                if (existingPay) {
-                    // Delete document if toggling off
-                    await deleteDoc(getDocRef('payments', existingPay.id));
-                    await logAudit("HAPUS_SETORAN", `Siswa: ${studentId}, TA: ${targetYear}, Bulan: ${monthIdx}`);
-                    window.showToast("Setoran kas dibatalkan.");
-                } else {
-                    // Create payment document storing nominal amount!
-                    const payId = `pay_${studentId}_${targetYear}_${monthIdx}`;
-                    await setDoc(getDocRef('payments', payId), {
-                        id: payId,
-                        studentId: studentId,
-                        academicYear: String(targetYear),
-                        monthIdx: monthIdx,
-                        amount: Number(window.settings.kasRate),
-                        paidAt: new Date().toISOString()
-                    });
-                    await logAudit("CATAT_SETORAN", `Siswa: ${studentId}, Nominal: Rp${window.settings.kasRate}`);
-                    window.showToast("Setoran kas berhasil dicatat!");
-                }
+                let isNowPaid = false;
+                await runTransaction(db, async (transaction) => {
+                    const sfDoc = await transaction.get(payRef);
+                    if (sfDoc.exists()) {
+                        transaction.delete(payRef);
+                        isNowPaid = false;
+                    } else {
+                        transaction.set(payRef, {
+                            id: payId,
+                            studentId: studentId,
+                            academicYear: String(targetYear),
+                            monthIdx: monthIdx,
+                            amount: Number(window.settings.kasRate),
+                            paidAt: new Date().toISOString()
+                        });
+                        isNowPaid = true;
+                    }
+                });
+
+                await logAudit(isNowPaid ? "CATAT_SETORAN" : "HAPUS_SETORAN", `Siswa: ${studentId}, TA: ${targetYear}, Bulan: ${monthIdx}`);
+                window.showToast(isNowPaid ? "Setoran kas berhasil dicatat!" : "Setoran kas dibatalkan.");
             } catch (err) {
-                console.error('Toggle kas error:', err);
-                window.showToast("Gagal menyimpan setoran.", true);
+                console.error('Toggle kas transaction error:', err);
+                window.showToast("Gagal memperbarui setoran kas.", true);
             }
         };
 
-        /* 2. Mark All Active Students for Selected Month */
+        /* 2. Mark All Active Students for Current Calendar Month (Batch Write) */
         window.markAllCurrentMonth = async function() {
             if (!window.isAdmin || !db) return;
             try {
                 const now = new Date();
-                const monthIdx = now.getMonth();
+                const currentCalMonthIdx = now.getMonth();
                 const activeStudents = window.students.filter(s => s.active !== false);
 
+                const batch = writeBatch(db);
                 let addedCount = 0;
+
                 for (const st of activeStudents) {
-                    const payId = `pay_${st.id}_${window.currentTaStartYear}_${monthIdx}`;
-                    if (!window.findPayment(st.id, window.currentTaStartYear, monthIdx)) {
-                        await setDoc(getDocRef('payments', payId), {
+                    const payId = `pay_${st.id}_${window.currentTaStartYear}_${currentCalMonthIdx}`;
+                    if (!window.findPayment(st.id, window.currentTaStartYear, currentCalMonthIdx)) {
+                        const payRef = getDocRef('payments', payId);
+                        batch.set(payRef, {
                             id: payId,
                             studentId: st.id,
                             academicYear: String(window.currentTaStartYear),
-                            monthIdx: monthIdx,
+                            monthIdx: currentCalMonthIdx,
                             amount: Number(window.settings.kasRate),
                             paidAt: new Date().toISOString()
                         });
                         addedCount++;
                     }
                 }
-                await logAudit("CENTANG_SEMUA", `Menandai ${addedCount} siswa lunas`);
-                window.showToast(`Berhasil mencentang ${addedCount} siswa bulan ini!`);
+
+                if (addedCount > 0) {
+                    await batch.commit();
+                    await logAudit("CENTANG_SEMUA", `Menandai ${addedCount} siswa lunas`);
+                    window.showToast(`Berhasil mencentang ${addedCount} siswa bulan ini!`);
+                } else {
+                    window.showToast("Semua siswa aktif sudah mencatatkan setoran bulan ini.");
+                }
             } catch (e) {
                 window.showToast("Gagal mencentang otomatis.", true);
             }
         };
 
-        /* 3. Add / Edit Transaction Per Document */
+        /* 3. Add / Edit Transaction Per Document (Preserving createdAt) */
         window.saveTransaction = async function(e) {
             e.preventDefault();
             if (!db) return;
 
             try {
                 const txId = editingTransactionId || `trx_${Date.now()}`;
+                const existingTx = window.transactions.find(t => t.id === txId);
+
                 const txData = {
                     id: txId,
                     type: document.getElementById('txType').value,
@@ -1421,6 +1438,7 @@
                     desc: document.getElementById('txDesc').value,
                     date: document.getElementById('txDate').value,
                     receipt: currentReceiptBase64 || null,
+                    createdAt: existingTx?.createdAt || new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                 };
 
@@ -1493,25 +1511,27 @@
                         createdAt: new Date().toISOString()
                     });
                 }
-                await logAudit("TAMBAH_SISWA_BANYAK", `Jumlah: ${names.length} siswa`);
+                await logAudit("TAMBAH_BULK_SISWA", `Jumlah: ${names.length} siswa`);
+                document.getElementById('bulkStudentInput').value = '';
                 window.closeBulkStudentModal();
                 window.showToast(`Berhasil menambahkan ${names.length} siswa baru!`);
-            } catch (e) {
-                window.showToast("Gagal menambahkan banyak siswa.", true);
+            } catch (err) {
+                window.showToast("Gagal menambah siswa.", true);
             }
         };
 
-        /* 7. Soft Delete Student (Set active: false) */
+        /* 7. Soft Delete Student (Set active = false) */
         window.askDeleteStudent = function(stuId) {
-            const st = window.students.find(s => s.id === stuId);
-            if (!st) return;
-            document.getElementById('confirmTitle').innerText = "Set Non-Aktifkan Siswa";
-            document.getElementById('confirmMessage').innerText = `Set status "${st.name}" menjadi Non-Aktif? (Data histori setoran tetap aman)`;
+            const student = window.students.find(s => s.id === stuId);
+            if (!student) return;
+
+            document.getElementById('confirmTitle').innerText = "Non-aktifkan Siswa";
+            document.getElementById('confirmMessage').innerText = `Set status non-aktif untuk "${student.name}"? Histori kas siswa tetap aman tersimpan.`;
             confirmCallback = async function() {
                 try {
                     await setDoc(getDocRef('students', stuId), { active: false }, { merge: true });
-                    await logAudit("NONAKTIFKAN_SISWA", `Siswa: ${st.name}`);
-                    window.showToast(`Status "${st.name}" diubah menjadi Non-Aktif.`);
+                    await logAudit("NONAKTIF_SISWA", `Nama: ${student.name}`);
+                    window.showToast(`Status "${student.name}" kini non-aktif.`);
                 } catch (e) {
                     window.showToast("Gagal mengubah status siswa.", true);
                 }
@@ -1519,42 +1539,94 @@
             document.getElementById('confirmModal').classList.remove('hidden');
         };
 
-        /* 8. Save Settings */
+        /* 8. Save Class Settings */
         window.saveSettings = async function() {
             if (!db) return;
             try {
-                const newSettings = {
-                    className: document.getElementById('settingClassName').value,
-                    kasRate: Number(document.getElementById('settingKasRate').value),
-                    treasurerPin: document.getElementById('settingPin').value,
-                    schemaVersion: 2
-                };
-                await setDoc(getDocRef('settings', 'config'), newSettings, { merge: true });
-                await logAudit("UBAH_PENGATURAN", `Kas rate: Rp${newSettings.kasRate}`);
+                const newClassName = document.getElementById('settingClassName').value.trim();
+                const newKasRate = Number(document.getElementById('settingKasRate').value);
+                const newPin = document.getElementById('settingPin').value.trim();
+
+                window.settings.className = newClassName || window.settings.className;
+                window.settings.kasRate = newKasRate || window.settings.kasRate;
+                window.settings.treasurerPin = newPin || window.settings.treasurerPin;
+
+                await setDoc(getDocRef('settings', 'config'), window.settings);
+                await logAudit("SIMPAN_PENGATURAN", `Kelas: ${window.settings.className}, Tarif: Rp${window.settings.kasRate}`);
                 window.closeSettingsModal();
-                window.showToast("Pengaturan kas kelas berhasil disimpan!");
+                window.showToast("Pengaturan berhasil disimpan di Cloud!");
             } catch (e) {
                 window.showToast("Gagal menyimpan pengaturan.", true);
             }
         };
 
-        /* 9. Correct reloadFromCloud (Pure READ ← Cloud) */
-        window.reloadFromCloud = function() {
-            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge(true);
-            window.updateUI();
-            window.showToast("Data terbaru berhasil dimuat ulang dari Firestore!");
+        /* 9. True READ from Cloud Server */
+        window.reloadFromCloud = async function() {
+            if (!db) return;
+            try {
+                window.showToast("Mengambil data terbaru dari Firestore...");
+                
+                const [settingsSnap, studentsSnap, paymentsSnap, transactionsSnap] = await Promise.all([
+                    getDocs(getColRef('settings')),
+                    getDocs(getColRef('students')),
+                    getDocs(getColRef('payments')),
+                    getDocs(getColRef('transactions'))
+                ]);
+
+                settingsSnap.forEach(doc => {
+                    if (doc.id === 'config') window.settings = { ...window.settings, ...doc.data() };
+                });
+
+                const studentsList = [];
+                studentsSnap.forEach(doc => studentsList.push(doc.data()));
+                window.students = studentsList;
+
+                const paymentsList = [];
+                paymentsSnap.forEach(doc => paymentsList.push(doc.data()));
+                window.payments = paymentsList;
+
+                const transactionsList = [];
+                transactionsSnap.forEach(doc => transactionsList.push(doc.data()));
+                transactionsList.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+                window.transactions = transactionsList;
+
+                window.updateUI();
+                if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge(true);
+                window.showToast("Data berhasil diperbarui langsung dari Cloud!");
+            } catch (err) {
+                console.error("Reload error:", err);
+                window.showToast("Gagal memuat ulang dari Cloud.", true);
+            }
         };
 
-        /* 10. Sync Whole State (For JSON Import) */
+        /* 10. Sync Whole State with Batch Delete & Write */
         window.syncWholeStateToFirestore = async function() {
             if (!db) return;
             try {
-                await setDoc(getDocRef('settings', 'config'), window.settings, { merge: true });
-                for (const s of window.students) await setDoc(getDocRef('students', s.id), s, { merge: true });
-                for (const p of window.payments) await setDoc(getDocRef('payments', p.id), p, { merge: true });
-                for (const t of window.transactions) await setDoc(getDocRef('transactions', t.id), t, { merge: true });
-                await logAudit("RESTORE_JSON", "Mengunggah data dari restore file JSON");
-            } catch (e) { console.warn("Batch sync failed", e); }
+                const [oldStudentsSnap, oldPaymentsSnap, oldTransactionsSnap] = await Promise.all([
+                    getDocs(getColRef('students')),
+                    getDocs(getColRef('payments')),
+                    getDocs(getColRef('transactions'))
+                ]);
+
+                const batch = writeBatch(db);
+
+                oldStudentsSnap.forEach(d => batch.delete(d.ref));
+                oldPaymentsSnap.forEach(d => batch.delete(d.ref));
+                oldTransactionsSnap.forEach(d => batch.delete(d.ref));
+
+                batch.set(getDocRef('settings', 'config'), window.settings, { merge: true });
+                for (const s of window.students) batch.set(getDocRef('students', s.id), s);
+                for (const p of window.payments) batch.set(getDocRef('payments', p.id), p);
+                for (const t of window.transactions) batch.set(getDocRef('transactions', t.id), t);
+
+                await batch.commit();
+                await logAudit("RESTORE_JSON", "Memulihkan & menimpa data Cloud dari file JSON");
+                window.showToast("Data Cloud berhasil dipulihkan total!");
+            } catch (e) {
+                console.error("Batch sync failed", e);
+                window.showToast("Gagal mensinkronkan data restore ke Cloud.", true);
+            }
         };
 
         /* Firestore Real-Time Listeners */
@@ -1580,11 +1652,11 @@
                     window.updateUI();
                 });
 
-                // Students Listener
+                // Students Listener (Direct Assignment)
                 onSnapshot(getColRef('students'), (querySnap) => {
                     const list = [];
                     querySnap.forEach(d => list.push(d.data()));
-                    if (list.length > 0) window.students = list;
+                    window.students = list;
                     window.updateUI();
                 });
 
