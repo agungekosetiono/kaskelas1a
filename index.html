@@ -544,7 +544,6 @@
             schemaVersion: 2
         };
 
-        // Struct: [{ id: "stu_1", name: "Ahmad Zaky", active: true }, ...]
         window.students = [
             { id: "stu_1", name: "Ahmad Zaky", active: true },
             { id: "stu_2", name: "Aisyah Humaira", active: true },
@@ -556,13 +555,8 @@
             { id: "stu_8", name: "Siti Khadijah", active: true }
         ];
 
-        // Struct: [{ id: "pay_1", studentId: "stu_1", academicYear: "2026", monthIdx: 6, amount: 10000, paidAt: "..." }, ...]
         window.payments = [];
-
-        // Struct: [{ id: "trx_1", type: "IN", category: "Kas", amount: 10000, desc: "...", date: "2026-08-18", receipt: null, createdAt: "..." }, ...]
         window.transactions = [];
-
-        // Struct: [{ id: "log_1", action: "TAMBAH_TRANSAKSI", details: "...", timestamp: "..." }]
         window.auditLogs = [];
 
         window.isAdmin = false;
@@ -633,7 +627,7 @@
             return "Rp " + Number(val || 0).toLocaleString('id-ID');
         }
 
-        /* Handle Receipt Image Upload & Ultra Light Compression (350px Max) */
+        /* Handle Receipt Image Upload & Compression (350px Max) */
         window.handleReceiptUpload = function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -665,7 +659,6 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Compress to lightweight JPEG Base64 (~15-20KB max)
                     currentReceiptBase64 = canvas.toDataURL('image/jpeg', 0.4);
                     document.getElementById('receiptPreviewImg').src = currentReceiptBase64;
                     document.getElementById('receiptPreviewContainer').classList.remove('hidden');
@@ -706,6 +699,7 @@
             if (imgEl) imgEl.src = '';
         };
 
+        /* Updating Core UI Components */
         window.updateUI = function() {
             if (document.getElementById('classNameDisplay')) {
                 document.getElementById('classNameDisplay').innerText = window.settings.className;
@@ -714,11 +708,11 @@
                 document.getElementById('cardRate').innerText = formatRp(window.settings.kasRate);
             }
 
-            // Update Dynamic Month Button Text
+            // Dynamic Month Button Text with Year Context
             const btnMark = document.getElementById('btnMarkCurrentMonth');
             if (btnMark) {
                 const curMonthName = monthNamesIndo[currentSystemMonth];
-                btnMark.innerHTML = `<i class="fa-solid fa-check-double"></i> Centang ${curMonthName} (Semua)`;
+                btnMark.innerHTML = `<i class="fa-solid fa-check-double"></i> Centang ${curMonthName} ${window.currentTaStartYear} (Semua)`;
             }
 
             populateYearSelect();
@@ -760,6 +754,7 @@
             renderAuditLogs();
         };
 
+        /* Render Cash Payment Matrix */
         function renderKasMatrix() {
             const select = document.getElementById('kasYearSelect');
             if (select && select.value) {
@@ -779,7 +774,6 @@
             const sem2Header = document.getElementById('sem2HeaderTitle');
             if (sem2Header) sem2Header.innerText = `SEMESTER 2 (JANUARI - JUNI ${endY})`;
 
-            // Display active students
             const activeStudents = window.students.filter(s => s.active !== false);
 
             activeStudents.forEach((student, index) => {
@@ -817,6 +811,7 @@
             });
         }
 
+        /* Render Transaction Journal Table */
         function renderJournalTable() {
             const tbody = document.getElementById('journalTableBody');
             if (!tbody) return;
@@ -863,6 +858,7 @@
             });
         }
 
+        /* Render Student Roster Table */
         function renderStudentsTable() {
             const tbody = document.getElementById('studentsTableBody');
             if (!tbody) return;
@@ -933,8 +929,8 @@
             });
         }
 
+        /* Render Chart & Progress List */
         function renderAnalytics() {
-            /* Chart filtered by selected Academic Year */
             const ctx = document.getElementById('cashflowChart');
             if (ctx) {
                 const academicMonths = window.getAcademicMonths(window.currentTaStartYear);
@@ -971,7 +967,6 @@
                 });
             }
 
-            /* Progress list by Semester & Academic Year */
             const container = document.getElementById('progressList');
             if (!container) return;
             container.innerHTML = '';
@@ -1031,6 +1026,7 @@
             `;
         }
 
+        /* Render Audit Log Stream */
         function renderAuditLogs() {
             const container = document.getElementById('auditLogContainer');
             if (!container) return;
@@ -1122,9 +1118,10 @@
             document.getElementById('importFile').click();
         };
 
+        /* Async Importer with Await for Full Sync */
         window.importDataJSON = function(event) {
             const fileReader = new FileReader();
-            fileReader.onload = function(e) {
+            fileReader.onload = async function(e) {
                 try {
                     const parsed = JSON.parse(e.target.result);
                     if (!parsed || (parsed.schemaVersion !== 2 && !parsed.students)) {
@@ -1137,7 +1134,7 @@
                     if (parsed.transactions && Array.isArray(parsed.transactions)) window.transactions = parsed.transactions;
 
                     if (typeof window.syncWholeStateToFirestore === 'function') {
-                        window.syncWholeStateToFirestore();
+                        await window.syncWholeStateToFirestore();
                     }
                     window.showToast("Data berhasil dipulihkan dari cadangan JSON!");
                 } catch (err) {
@@ -1319,11 +1316,11 @@
         };
     </script>
 
-    <!-- Firebase Cloud Modular Architecture Script -->
+    <!-- Firebase Cloud Modular Engine Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot, runTransaction, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, onSnapshot, runTransaction, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const DEFAULT_FIREBASE_CONFIG = {
             apiKey: "AIzaSyA_m1j8cr4XCEqvkcRcf1_ZZ7vjLSB1fQs",
@@ -1338,11 +1335,11 @@
         let auth = null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'kaskelas1a';
 
-        /* Base Collections Paths */
+        /* Base Collection & Document Path Helpers */
         const getColRef = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
         const getDocRef = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
 
-        /* Chunking Helper for Large Batches (Max 400 operations per chunk) */
+        /* Chunking Helper for Batch Operations (Max 400 ops per chunk) */
         async function commitInChunks(operations, chunkSize = 400) {
             for (let i = 0; i < operations.length; i += chunkSize) {
                 const chunk = operations.slice(i, i + chunkSize);
@@ -1358,32 +1355,36 @@
             }
         }
 
-        /* Log action helper with Auto-Generated Doc ID & Full Datetime Format */
+        /* Log Action Helper with Chronological Sorting Timestamp */
         async function logAudit(action, details) {
             if (!db) return;
             try {
-                const logsCol = getColRef('audit_logs');
-                const newLogDoc = doc(logsCol);
+                const newLogDoc = doc(getColRef('audit_logs'));
                 const now = new Date();
                 const formattedTime = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('id-ID');
                 await setDoc(newLogDoc, {
                     id: newLogDoc.id,
                     action: action,
                     details: details,
-                    timestamp: formattedTime
+                    timestamp: formattedTime,
+                    isoTime: now.toISOString()
                 });
-            } catch (e) { console.warn('Audit error', e); }
+            } catch (e) { console.warn('Audit log write error:', e); }
         }
 
-        /* 1. Toggle Kas Payment Per Document (Atomic Firestore Transaction) */
+        /* 1. Toggle Kas Payment Per Document (Atomic Transaction) */
         window.toggleKas = async function(studentId, targetYear, monthIdx) {
             if (!window.isAdmin || !db) return;
             const payId = `pay_${studentId}_${targetYear}_${monthIdx}`;
             const payRef = getDocRef('payments', payId);
+            const settingsRef = getDocRef('settings', 'config');
 
             try {
                 let isNowPaid = false;
                 await runTransaction(db, async (transaction) => {
+                    const settingsSnap = await transaction.get(settingsRef);
+                    const currentRate = settingsSnap.exists() ? Number(settingsSnap.data().kasRate || 10000) : Number(window.settings.kasRate);
+                    
                     const sfDoc = await transaction.get(payRef);
                     if (sfDoc.exists()) {
                         transaction.delete(payRef);
@@ -1394,7 +1395,7 @@
                             studentId: studentId,
                             academicYear: String(targetYear),
                             monthIdx: monthIdx,
-                            amount: Number(window.settings.kasRate),
+                            amount: currentRate,
                             paidAt: new Date().toISOString()
                         });
                         isNowPaid = true;
@@ -1409,7 +1410,7 @@
             }
         };
 
-        /* 2. Mark All Active Students for Current Calendar Month (Fetch Fresh Cloud Data First) */
+        /* 2. Mark All Active Students for Current Calendar Month */
         window.markAllCurrentMonth = async function() {
             if (!window.isAdmin || !db) return;
             try {
@@ -1417,7 +1418,6 @@
                 const currentCalMonthIdx = now.getMonth();
                 const activeStudents = window.students.filter(s => s.active !== false);
 
-                // Fetch current payments from Firestore directly for safety
                 const paymentsSnap = await getDocs(getColRef('payments'));
                 const existingPayIds = new Set();
                 paymentsSnap.forEach(d => existingPayIds.add(d.id));
@@ -1457,13 +1457,14 @@
             }
         };
 
-        /* 3. Add / Edit Transaction Per Document (Preserving createdAt) */
+        /* 3. Add / Edit Transaction Document with Firestore Random ID */
         window.saveTransaction = async function(e) {
             e.preventDefault();
             if (!db) return;
 
             try {
-                const txId = editingTransactionId || `trx_${Date.now()}`;
+                const txRef = doc(getColRef('transactions'));
+                const txId = editingTransactionId || txRef.id;
                 const existingTx = window.transactions.find(t => t.id === txId);
 
                 const txData = {
@@ -1488,7 +1489,7 @@
             }
         };
 
-        /* 4. Ask & Delete Transaction */
+        /* 4. Delete Transaction */
         window.askDeleteTransaction = function(txId) {
             document.getElementById('confirmTitle').innerText = "Hapus Transaksi";
             document.getElementById('confirmMessage').innerText = "Apakah Anda yakin ingin menghapus catatan transaksi ini?";
@@ -1512,8 +1513,9 @@
             if (!name) return;
 
             try {
-                const stuId = `stu_${Date.now()}`;
-                await setDoc(getDocRef('students', stuId), {
+                const stuRef = doc(getColRef('students'));
+                const stuId = stuRef.id;
+                await setDoc(stuRef, {
                     id: stuId,
                     name: name,
                     active: true,
@@ -1528,7 +1530,7 @@
             }
         };
 
-        /* 6. Add Bulk Students */
+        /* 6. Add Bulk Students (Optimized Chunked Commit) */
         window.saveBulkStudents = async function(e) {
             e.preventDefault();
             if (!db) return;
@@ -1538,15 +1540,20 @@
             if (names.length === 0) return;
 
             try {
-                for (const n of names) {
-                    const stuId = `stu_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-                    await setDoc(getDocRef('students', stuId), {
-                        id: stuId,
-                        name: n,
-                        active: true,
-                        createdAt: new Date().toISOString()
-                    });
-                }
+                const operations = names.map(n => {
+                    const stuRef = doc(getColRef('students'));
+                    return {
+                        type: 'set',
+                        ref: stuRef,
+                        data: {
+                            id: stuRef.id,
+                            name: n,
+                            active: true,
+                            createdAt: new Date().toISOString()
+                        }
+                    };
+                });
+                await commitInChunks(operations);
                 await logAudit("TAMBAH_BULK_SISWA", `Jumlah: ${names.length} siswa`);
                 document.getElementById('bulkStudentInput').value = '';
                 window.closeBulkStudentModal();
@@ -1556,7 +1563,7 @@
             }
         };
 
-        /* 7. Soft Delete Student (Set active = false) */
+        /* 7. Soft Delete Student */
         window.askDeleteStudent = function(stuId) {
             const student = window.students.find(s => s.id === stuId);
             if (!student) return;
@@ -1596,22 +1603,22 @@
             }
         };
 
-        /* 9. True READ from Cloud Server */
+        /* 9. Correct READ from Cloud (Document Level for Settings) */
         window.reloadFromCloud = async function() {
             if (!db) return;
             try {
                 window.showToast("Mengambil data terbaru dari Firestore...");
                 
-                const [settingsSnap, studentsSnap, paymentsSnap, transactionsSnap] = await Promise.all([
-                    getDocs(getColRef('settings')),
+                const [settingsDocSnap, studentsSnap, paymentsSnap, transactionsSnap] = await Promise.all([
+                    getDoc(getDocRef('settings', 'config')),
                     getDocs(getColRef('students')),
                     getDocs(getColRef('payments')),
                     getDocs(getColRef('transactions'))
                 ]);
 
-                settingsSnap.forEach(doc => {
-                    if (doc.id === 'config') window.settings = { ...window.settings, ...doc.data() };
-                });
+                if (settingsDocSnap.exists()) {
+                    window.settings = { ...window.settings, ...settingsDocSnap.data() };
+                }
 
                 const studentsList = [];
                 studentsSnap.forEach(doc => studentsList.push(doc.data()));
@@ -1635,7 +1642,7 @@
             }
         };
 
-        /* 10. Sync Whole State with Chunked Delete & Write (Anti 500 Limit) */
+        /* 10. Sync Whole State with Safe Chunked Delete & Write Operations */
         window.syncWholeStateToFirestore = async function() {
             if (!db) return;
             try {
@@ -1647,18 +1654,15 @@
 
                 const operations = [];
 
-                // Delete operations
                 oldStudentsSnap.forEach(d => operations.push({ type: 'delete', ref: d.ref }));
                 oldPaymentsSnap.forEach(d => operations.push({ type: 'delete', ref: d.ref }));
                 oldTransactionsSnap.forEach(d => operations.push({ type: 'delete', ref: d.ref }));
 
-                // Set operations
                 operations.push({ type: 'set', ref: getDocRef('settings', 'config'), data: window.settings, options: { merge: true } });
                 for (const s of window.students) operations.push({ type: 'set', ref: getDocRef('students', s.id), data: s });
                 for (const p of window.payments) operations.push({ type: 'set', ref: getDocRef('payments', p.id), data: p });
                 for (const t of window.transactions) operations.push({ type: 'set', ref: getDocRef('transactions', t.id), data: t });
 
-                // Commit in safe chunks of 400 operations
                 await commitInChunks(operations, 400);
 
                 await logAudit("RESTORE_JSON", "Memulihkan & menimpa data Cloud dari file JSON");
@@ -1692,7 +1696,7 @@
                     window.updateUI();
                 });
 
-                // Students Listener (Direct Assignment)
+                // Students Listener
                 onSnapshot(getColRef('students'), (querySnap) => {
                     const list = [];
                     querySnap.forEach(d => list.push(d.data()));
@@ -1717,11 +1721,11 @@
                     window.updateUI();
                 });
 
-                // Audit Logs Listener
+                // Audit Logs Listener with Chronological Sorting
                 onSnapshot(getColRef('audit_logs'), (querySnap) => {
                     const list = [];
                     querySnap.forEach(d => list.push(d.data()));
-                    list.sort((a, b) => (b.id > a.id ? 1 : -1));
+                    list.sort((a, b) => new Date(b.isoTime || 0) - new Date(a.isoTime || 0));
                     window.auditLogs = list;
                     renderAuditLogs();
                 });
