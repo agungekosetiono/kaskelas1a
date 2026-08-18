@@ -68,7 +68,7 @@
                 <button onclick="openWhatsAppModal()" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
                     <i class="fa-brands fa-whatsapp"></i> Rekap WA
                 </button>
-                <button onclick="openSettingsModal()" class="admin-only hidden p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors" title="Pengaturan Kas Kelas">
+                <button onclick="openSettingsModal()" class="admin-only hidden p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors" title="Pengaturan & Audit Log">
                     <i class="fa-solid fa-gear text-base"></i>
                 </button>
             </div>
@@ -268,7 +268,8 @@
                             <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                                 <th class="p-3 w-12 text-center">NO</th>
                                 <th class="p-3 min-w-[200px]">NAMA LENGKAP SISWA</th>
-                                <th class="p-3 min-w-[200px]">STATUS SETORAN</th>
+                                <th class="p-3 min-w-[120px]">STATUS SISWA</th>
+                                <th class="p-3 min-w-[200px]">SETORAN KAS</th>
                                 <th class="p-3 text-right min-w-[120px]">TOTAL TERBAYAR</th>
                                 <th class="p-3 text-center w-20 admin-only hidden">AKSI</th>
                             </tr>
@@ -286,7 +287,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Chart Pemasukan vs Pengeluaran -->
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                    <h3 class="text-sm font-bold text-slate-800 mb-4">Perbandingan Arus Kas</h3>
+                    <h3 class="text-sm font-bold text-slate-800 mb-4">Perbandingan Arus Kas (Tahun Ajaran Terpilih)</h3>
                     <div class="h-64 flex items-center justify-center">
                         <canvas id="cashflowChart"></canvas>
                     </div>
@@ -445,15 +446,15 @@
             <p id="confirmMessage" class="text-xs text-slate-500 mb-4">Apakah Anda yakin ingin menghapus data ini?</p>
             <div class="flex gap-2">
                 <button onclick="closeConfirmModal(false)" class="w-1/2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs">Batal</button>
-                <button onclick="closeConfirmModal(true)" class="w-1/2 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs">Hapus</button>
+                <button onclick="closeConfirmModal(true)" class="w-1/2 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs">Proses</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: SETTINGS -->
+    <!-- MODAL: SETTINGS & AUDIT LOG -->
     <div id="settingsModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4">
-            <h3 class="text-base font-bold text-slate-900">Pengaturan Kas Kelas</h3>
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <h3 class="text-base font-bold text-slate-900">Pengaturan Kas & Database</h3>
             <div class="space-y-3">
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kelas / Sekolah</label>
@@ -467,13 +468,22 @@
                     <label class="block text-xs font-semibold text-slate-700 mb-1">PIN Bendahara Baru</label>
                     <input type="password" id="settingPin" class="w-full text-xs border border-slate-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 </div>
-                <!-- Firebase Cloud Status -->
+                
+                <!-- Cloud Refresh Section -->
                 <div class="pt-2 border-t border-slate-100">
-                    <label class="block text-xs font-bold text-slate-800 mb-1">Penyimpanan Cloud Firebase Online</label>
-                    <p class="text-[11px] text-slate-500 mb-2">Seluruh data tersimpan terpusat di cloud Firebase. Klik tombol di bawah jika ingin memaksa pembaruan data dari cloud.</p>
+                    <label class="block text-xs font-bold text-slate-800 mb-1">Sinkronisasi Cloud Firebase</label>
+                    <p class="text-[11px] text-slate-500 mb-2">Mengambil data terbaru dari Firestore Cloud dan memperbarui tampilan.</p>
                     <button type="button" onclick="reloadFromCloud()" class="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors">
-                        <i class="fa-solid fa-arrows-rotate text-emerald-600"></i> Sinkronkan Ulang dari Firebase
+                        <i class="fa-solid fa-arrows-rotate text-emerald-600"></i> Muat Ulang Data dari Cloud (READ)
                     </button>
+                </div>
+
+                <!-- Audit Log Preview -->
+                <div class="pt-2 border-t border-slate-100">
+                    <label class="block text-xs font-bold text-slate-800 mb-1"><i class="fa-solid fa-list-check text-indigo-600 mr-1"></i> Audit Log Riwayat Aksi</label>
+                    <div id="auditLogContainer" class="bg-slate-900 text-slate-200 text-[10px] p-2.5 rounded-xl font-mono h-28 overflow-y-auto custom-scrollbar space-y-1 border border-slate-700">
+                        <p class="text-slate-400 italic">Memuat audit log...</p>
+                    </div>
                 </div>
             </div>
             <div class="flex gap-2 pt-2">
@@ -483,7 +493,7 @@
         </div>
     </div>
 
-    <!-- MAIN ENGINE & STATE SCRIPT (Executes synchronously first) -->
+    <!-- MAIN ENGINE & GLOBAL STATE SCRIPT -->
     <script>
         /* Toast Notification Helper */
         window.showToast = function(msg, isError = false) {
@@ -526,26 +536,39 @@
             }
         };
 
-        /* Initial In-Memory State */
-        const DEFAULT_STUDENTS = [
-            "Ahmad Zaky", "Aisyah Humaira", "Al Fatih", "Bilal Ramadhan", 
-            "Fatimah Az-Zahra", "Naura Hasna Annida", "Muhammad Al-Kahfi", "Siti Khadijah"
-        ];
-
+        /* Application In-Memory State */
         window.settings = {
             className: "Kelas 1A SD IT Lukmanul Hakim Puring, Kebumen",
             kasRate: 10000,
-            treasurerPin: "1234"
+            treasurerPin: "1234",
+            schemaVersion: 2
         };
 
-        window.students = [...DEFAULT_STUDENTS];
-        window.kasPayments = {};
+        // Struct: [{ id: "stu_1", name: "Ahmad Zaky", active: true }, ...]
+        window.students = [
+            { id: "stu_1", name: "Ahmad Zaky", active: true },
+            { id: "stu_2", name: "Aisyah Humaira", active: true },
+            { id: "stu_3", name: "Al Fatih", active: true },
+            { id: "stu_4", name: "Bilal Ramadhan", active: true },
+            { id: "stu_5", name: "Fatimah Az-Zahra", active: true },
+            { id: "stu_6", name: "Naura Hasna Annida", active: true },
+            { id: "stu_7", name: "Muhammad Al-Kahfi", active: true },
+            { id: "stu_8", name: "Siti Khadijah", active: true }
+        ];
+
+        // Struct: [{ id: "pay_1", studentId: "stu_1", academicYear: "2026", monthIdx: 6, amount: 10000, paidAt: "..." }, ...]
+        window.payments = [];
+
+        // Struct: [{ id: "trx_1", type: "IN", category: "Kas", amount: 10000, desc: "...", date: "2026-08-18", receipt: null, createdAt: "..." }, ...]
         window.transactions = [];
+
+        // Struct: [{ id: "log_1", action: "TAMBAH_TRANSAKSI", details: "...", timestamp: "..." }]
+        window.auditLogs = [];
 
         window.isAdmin = false;
         const currentSystemDate = new Date();
         const currentSystemYear = currentSystemDate.getFullYear();
-        const currentSystemMonth = currentSystemDate.getMonth(); // 0 = Jan, 6 = Jul
+        const currentSystemMonth = currentSystemDate.getMonth();
         
         const defaultTaStartYear = currentSystemMonth >= 6 ? currentSystemYear : currentSystemYear - 1;
         window.currentTaStartYear = String(defaultTaStartYear);
@@ -553,9 +576,9 @@
         let confirmCallback = null;
         let chartInstance = null;
         let currentReceiptBase64 = null;
-        let editingTransactionIndex = null;
+        let editingTransactionId = null;
 
-        function getAcademicMonths(startYearStr) {
+        window.getAcademicMonths = function(startYearStr) {
             const startY = parseInt(startYearStr || defaultTaStartYear, 10);
             const endY = startY + 1;
             return [
@@ -572,11 +595,11 @@
                 { label: "MEI", fullLabel: "Mei", idx: 4, year: String(endY), sem: 2 },
                 { label: "JUN", fullLabel: "Juni", idx: 5, year: String(endY), sem: 2 }
             ];
-        }
+        };
 
-        function isKasPaid(student, mObj) {
-            return !!(window.kasPayments[mObj.year] && window.kasPayments[mObj.year][student] && window.kasPayments[mObj.year][student][mObj.idx]);
-        }
+        window.findPayment = function(studentId, targetYear, monthIdx) {
+            return window.payments.find(p => p.studentId === studentId && String(p.academicYear) === String(targetYear) && p.monthIdx === monthIdx);
+        };
 
         function populateYearSelect() {
             const select = document.getElementById('kasYearSelect');
@@ -604,20 +627,6 @@
             renderAnalytics();
         };
 
-        window.persistData = function() {
-            if (typeof window.pushToCloud === 'function') {
-                window.pushToCloud();
-            }
-            window.updateUI();
-        };
-
-        window.reloadFromCloud = function() {
-            if (typeof window.pushToCloud === 'function') {
-                window.pushToCloud();
-                window.showToast("Data disinkronkan ulang dengan Firebase!");
-            }
-        };
-
         function formatRp(val) {
             return "Rp " + Number(val || 0).toLocaleString('id-ID');
         }
@@ -631,8 +640,8 @@
                 const img = new Image();
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 600;
-                    const MAX_HEIGHT = 600;
+                    const MAX_WIDTH = 500;
+                    const MAX_HEIGHT = 500;
                     let width = img.width;
                     let height = img.height;
 
@@ -653,7 +662,7 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    currentReceiptBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                    currentReceiptBase64 = canvas.toDataURL('image/jpeg', 0.5);
                     document.getElementById('receiptPreviewImg').src = currentReceiptBase64;
                     document.getElementById('receiptPreviewContainer').classList.remove('hidden');
                 };
@@ -672,8 +681,8 @@
             if (previewImg) previewImg.src = '';
         };
 
-        window.openReceiptModal = function(idx) {
-            const tx = window.transactions[idx];
+        window.openReceiptModal = function(txId) {
+            const tx = window.transactions.find(t => t.id === txId);
             if (tx && tx.receipt) {
                 const imgEl = document.getElementById('fullReceiptImg');
                 const modalEl = document.getElementById('viewReceiptModal');
@@ -704,16 +713,8 @@
             populateYearSelect();
 
             let totalKasIncome = 0;
-            Object.values(window.kasPayments).forEach(yearData => {
-                if (yearData) {
-                    Object.values(yearData).forEach(studentData => {
-                        if (studentData) {
-                            Object.values(studentData).forEach(paid => {
-                                if (paid) totalKasIncome += Number(window.settings.kasRate);
-                            });
-                        }
-                    });
-                }
+            window.payments.forEach(p => {
+                totalKasIncome += Number(p.amount || window.settings.kasRate);
             });
 
             let otherIncome = 0;
@@ -745,6 +746,7 @@
             renderJournalTable();
             renderStudentsTable();
             renderAnalytics();
+            renderAuditLogs();
         };
 
         function renderKasMatrix() {
@@ -759,30 +761,34 @@
 
             const startY = parseInt(window.currentTaStartYear, 10);
             const endY = startY + 1;
-            const academicMonths = getAcademicMonths(window.currentTaStartYear);
+            const academicMonths = window.getAcademicMonths(window.currentTaStartYear);
 
             const sem1Header = document.getElementById('sem1HeaderTitle');
             if (sem1Header) sem1Header.innerText = `SEMESTER 1 (JULI - DESEMBER ${startY})`;
             const sem2Header = document.getElementById('sem2HeaderTitle');
             if (sem2Header) sem2Header.innerText = `SEMESTER 2 (JANUARI - JUNI ${endY})`;
 
-            window.students.forEach((student, index) => {
+            // Display active students or students with historical payments
+            const activeStudents = window.students.filter(s => s.active !== false);
+
+            activeStudents.forEach((student, index) => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors";
 
                 let studentTaTotal = 0;
                 let cellsHtml = `<td class="p-3 text-center font-semibold text-slate-400 border-r border-slate-200">${index + 1}</td>`;
-                cellsHtml += `<td class="p-3 font-semibold text-slate-800 sticky left-0 bg-white shadow-r border-r border-slate-200">${student}</td>`;
+                cellsHtml += `<td class="p-3 font-semibold text-slate-800 sticky left-0 bg-white shadow-r border-r border-slate-200">${student.name}</td>`;
 
                 academicMonths.forEach((mObj) => {
-                    const paid = isKasPaid(student, mObj);
-                    if (paid) studentTaTotal += Number(window.settings.kasRate);
+                    const pay = window.findPayment(student.id, mObj.year, mObj.idx);
+                    const paid = !!pay;
+                    if (paid) studentTaTotal += Number(pay.amount);
 
                     const btnClass = paid 
                         ? "bg-emerald-500 text-white font-bold" 
                         : "bg-slate-100 text-slate-400 hover:bg-slate-200";
 
-                    const clickAttr = window.isAdmin ? `onclick="toggleKas('${student}', '${mObj.year}', ${mObj.idx})"` : '';
+                    const clickAttr = window.isAdmin ? `onclick="toggleKas('${student.id}', '${mObj.year}', ${mObj.idx})"` : '';
                     const borderClass = (mObj.label === 'DES' || mObj.label === 'JUN') ? 'border-r border-slate-200' : '';
 
                     cellsHtml += `
@@ -800,30 +806,6 @@
             });
         }
 
-        window.toggleKas = function(student, targetYear, monthIdx) {
-            if (!window.isAdmin) return;
-            const yearStr = String(targetYear);
-            if (!window.kasPayments[yearStr]) window.kasPayments[yearStr] = {};
-            if (!window.kasPayments[yearStr][student]) window.kasPayments[yearStr][student] = {};
-
-            window.kasPayments[yearStr][student][monthIdx] = !window.kasPayments[yearStr][student][monthIdx];
-            window.persistData();
-        };
-
-        window.markAllCurrentMonth = function() {
-            if (!window.isAdmin) return;
-            const now = new Date();
-            const realMonthIdx = now.getMonth();
-            const realYear = String(now.getFullYear());
-            if (!window.kasPayments[realYear]) window.kasPayments[realYear] = {};
-
-            window.students.forEach(student => {
-                if (!window.kasPayments[realYear][student]) window.kasPayments[realYear][student] = {};
-                window.kasPayments[realYear][student][realMonthIdx] = true;
-            });
-            window.persistData();
-        };
-
         function renderJournalTable() {
             const tbody = document.getElementById('journalTableBody');
             if (!tbody) return;
@@ -838,7 +820,6 @@
             }
 
             filteredTx.forEach((tx) => {
-                const realIdx = window.transactions.indexOf(tx);
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors";
 
@@ -848,7 +829,7 @@
                     : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">Keluar</span>`;
 
                 const receiptButton = tx.receipt 
-                    ? `<button onclick="openReceiptModal(${realIdx})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-semibold transition-colors flex items-center gap-1 mx-auto shadow-sm cursor-pointer"><i class="fa-solid fa-image"></i> Lihat</button>`
+                    ? `<button onclick="openReceiptModal('${tx.id}')" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-semibold transition-colors flex items-center gap-1 mx-auto shadow-sm cursor-pointer"><i class="fa-solid fa-image"></i> Lihat</button>`
                     : `<span class="text-slate-300 text-[10px] italic">-</span>`;
 
                 tr.innerHTML = `
@@ -859,10 +840,10 @@
                     <td class="p-3 text-center">${receiptButton}</td>
                     <td class="p-3 text-right font-bold ${isIncome ? 'text-blue-600' : 'text-rose-600'}">${formatRp(tx.amount)}</td>
                     <td class="p-3 text-center admin-only ${!window.isAdmin ? 'hidden' : ''}">
-                        <button onclick="openTransactionModal(${realIdx})" class="text-indigo-600 hover:text-indigo-800 p-1 mr-1.5" title="Edit Transaksi">
+                        <button onclick="openTransactionModal('${tx.id}')" class="text-indigo-600 hover:text-indigo-800 p-1 mr-1.5" title="Edit Transaksi">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
-                        <button onclick="askDeleteTransaction(${realIdx})" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus Transaksi">
+                        <button onclick="askDeleteTransaction('${tx.id}')" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus Transaksi">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     </td>
@@ -876,19 +857,26 @@
             if (!tbody) return;
             tbody.innerHTML = '';
 
-            const academicMonths = getAcademicMonths(window.currentTaStartYear);
+            const academicMonths = window.getAcademicMonths(window.currentTaStartYear);
             const sem1Months = academicMonths.filter(m => m.sem === 1);
             const sem2Months = academicMonths.filter(m => m.sem === 2);
 
             window.students.forEach((student, idx) => {
                 let sem1Paid = 0;
                 let sem2Paid = 0;
+                let totalAmount = 0;
 
-                sem1Months.forEach(m => { if (isKasPaid(student, m)) sem1Paid++; });
-                sem2Months.forEach(m => { if (isKasPaid(student, m)) sem2Paid++; });
+                sem1Months.forEach(m => {
+                    const pay = window.findPayment(student.id, m.year, m.idx);
+                    if (pay) { sem1Paid++; totalAmount += Number(pay.amount); }
+                });
+
+                sem2Months.forEach(m => {
+                    const pay = window.findPayment(student.id, m.year, m.idx);
+                    if (pay) { sem2Paid++; totalAmount += Number(pay.amount); }
+                });
 
                 const totalPaidMonths = sem1Paid + sem2Paid;
-                const totalAmount = totalPaidMonths * window.settings.kasRate;
 
                 const sem1BadgeClass = sem1Paid === 6 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                                       sem1Paid > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-rose-50 text-rose-600 border-rose-200';
@@ -899,12 +887,17 @@
                 const totalBadgeClass = totalPaidMonths >= 10 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                                         totalPaidMonths > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-300';
 
+                const statusBadge = student.active !== false 
+                    ? `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[10px] font-bold">Aktif</span>`
+                    : `<span class="px-2 py-0.5 bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold">Non-aktif</span>`;
+
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition-colors";
 
                 tr.innerHTML = `
                     <td class="p-3 text-center font-semibold text-slate-400">${idx + 1}</td>
-                    <td class="p-3 font-semibold text-slate-800">${student}</td>
+                    <td class="p-3 font-semibold text-slate-800">${student.name}</td>
+                    <td class="p-3">${statusBadge}</td>
                     <td class="p-3">
                         <div class="flex flex-wrap items-center gap-1.5">
                             <span class="px-2.5 py-1 rounded-lg text-[11px] font-extrabold border ${totalBadgeClass}">
@@ -920,8 +913,8 @@
                     </td>
                     <td class="p-3 text-right font-bold text-emerald-700">${formatRp(totalAmount)}</td>
                     <td class="p-3 text-center admin-only ${!window.isAdmin ? 'hidden' : ''}">
-                        <button onclick="askDeleteStudent(${idx})" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus Siswa">
-                            <i class="fa-solid fa-trash"></i>
+                        <button onclick="askDeleteStudent('${student.id}')" class="text-rose-500 hover:text-rose-700 p-1" title="Set Non-Aktifkan Siswa">
+                            <i class="fa-solid fa-user-minus"></i>
                         </button>
                     </td>
                 `;
@@ -930,24 +923,26 @@
         }
 
         function renderAnalytics() {
-            /* Chart */
+            /* Chart filtered by selected Academic Year */
             const ctx = document.getElementById('cashflowChart');
             if (ctx) {
-                let totalKas = 0;
-                Object.values(window.kasPayments).forEach(yearData => {
-                    if (yearData) {
-                        Object.values(yearData).forEach(s => {
-                            if (s) {
-                                Object.values(s).forEach(p => { if (p) totalKas += Number(window.settings.kasRate); });
-                            }
-                        });
+                const academicMonths = window.getAcademicMonths(window.currentTaStartYear);
+                const validYears = Array.from(new Set(academicMonths.map(m => m.year)));
+
+                let totalKasTa = 0;
+                window.payments.forEach(p => {
+                    if (validYears.includes(String(p.academicYear))) {
+                        totalKasTa += Number(p.amount);
                     }
                 });
 
-                let otherIn = 0, totalOut = 0;
+                let otherInTa = 0, totalOutTa = 0;
                 window.transactions.forEach(t => {
-                    if (t.type === 'IN') otherIn += Number(t.amount);
-                    if (t.type === 'OUT') totalOut += Number(t.amount);
+                    const txYear = t.date ? t.date.split('-')[0] : '';
+                    if (validYears.includes(txYear)) {
+                        if (t.type === 'IN') otherInTa += Number(t.amount);
+                        if (t.type === 'OUT') totalOutTa += Number(t.amount);
+                    }
                 });
 
                 if (chartInstance) chartInstance.destroy();
@@ -957,7 +952,7 @@
                     data: {
                         labels: ['Setoran Kas Siswa', 'Pemasukan Lain', 'Pengeluaran'],
                         datasets: [{
-                            data: [totalKas, otherIn, totalOut],
+                            data: [totalKasTa, otherInTa, totalOutTa],
                             backgroundColor: ['#10b981', '#3b82f6', '#f43f5e']
                         }]
                     },
@@ -970,8 +965,9 @@
             if (!container) return;
             container.innerHTML = '';
             
-            const academicMonths = getAcademicMonths(window.currentTaStartYear);
-            const totalStudents = window.students.length || 1;
+            const academicMonths = window.getAcademicMonths(window.currentTaStartYear);
+            const activeStudents = window.students.filter(s => s.active !== false);
+            const totalStudents = activeStudents.length || 1;
             const startY = parseInt(window.currentTaStartYear, 10);
             const endY = startY + 1;
 
@@ -984,17 +980,17 @@
 
                 monthsList.forEach(m => {
                     let paidCount = 0;
-                    window.students.forEach(st => {
-                        if (isKasPaid(st, m)) paidCount++;
+                    activeStudents.forEach(st => {
+                        if (window.findPayment(st.id, m.year, m.idx)) paidCount++;
                     });
-                    const pct = window.students.length ? Math.round((paidCount / totalStudents) * 100) : 0;
+                    const pct = activeStudents.length ? Math.round((paidCount / totalStudents) * 100) : 0;
                     totalPctSum += pct;
 
                     monthsHtml += `
                         <div>
                             <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1">
                                 <span>Bulan ${m.fullLabel} (${m.year})</span>
-                                <span>${paidCount}/${window.students.length} Siswa (${pct}%)</span>
+                                <span>${paidCount}/${activeStudents.length} Siswa (${pct}%)</span>
                             </div>
                             <div class="w-full bg-slate-100 rounded-full h-2">
                                 <div class="${colorClass} h-2 rounded-full transition-all" style="width: ${pct}%"></div>
@@ -1022,6 +1018,21 @@
                 ${buildSemesterHtml(`SEMESTER 1 (JULI - DESEMBER ${startY})`, 'bg-emerald-500', sem1Months)}
                 ${buildSemesterHtml(`SEMESTER 2 (JANUARI - JUNI ${endY})`, 'bg-indigo-500', sem2Months)}
             `;
+        }
+
+        function renderAuditLogs() {
+            const container = document.getElementById('auditLogContainer');
+            if (!container) return;
+            if (window.auditLogs.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 italic">Belum ada riwayat aktivitas.</p>`;
+                return;
+            }
+            container.innerHTML = window.auditLogs.slice(0, 15).map(log => `
+                <div class="border-b border-slate-800 pb-1">
+                    <span class="text-emerald-400">[${log.timestamp || 'Realtime'}]</span> 
+                    <span class="text-amber-300">${log.action}:</span> ${log.details}
+                </div>
+            `).join('');
         }
 
         window.switchTab = function(tabId) {
@@ -1068,21 +1079,22 @@
                 window.updateUI();
                 window.showToast("Berhasil masuk sebagai Bendahara!");
             } else {
-                window.showToast("PIN Salah! Default PIN: 1234", true);
+                window.showToast("PIN Bendahara tidak valid.", true);
             }
         };
 
         window.exportDataJSON = function() {
             const now = new Date();
             const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}-${String(now.getSeconds()).padStart(2,'0')}`;
-            const fileName = `kas_kelas_${timeStr}.json`;
+            const fileName = `kas_kelas_v2_${timeStr}.json`;
 
             const exportObj = {
+                schemaVersion: 2,
+                exportedAt: now.toISOString(),
                 settings: window.settings,
                 students: window.students,
-                kasPayments: window.kasPayments,
-                transactions: window.transactions,
-                exportedAt: now.toISOString()
+                payments: window.payments,
+                transactions: window.transactions
             };
 
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
@@ -1092,7 +1104,7 @@
             document.body.appendChild(dlAnchorElem);
             dlAnchorElem.click();
             dlAnchorElem.remove();
-            window.showToast("Data cadangan berhasil diunduh!");
+            window.showToast("Data cadangan v2 berhasil diunduh!");
         };
 
         window.triggerUploadJSON = function() {
@@ -1104,14 +1116,21 @@
             fileReader.onload = function(e) {
                 try {
                     const parsed = JSON.parse(e.target.result);
+                    if (!parsed || (parsed.schemaVersion !== 2 && !parsed.students)) {
+                        window.showToast("Format JSON tidak valid atau versi lama!", true);
+                        return;
+                    }
                     if (parsed.settings) window.settings = parsed.settings;
-                    if (parsed.students) window.students = parsed.students;
-                    if (parsed.kasPayments) window.kasPayments = parsed.kasPayments;
-                    if (parsed.transactions) window.transactions = parsed.transactions;
-                    window.persistData();
-                    window.showToast("Data berhasil dipulihkan!");
+                    if (parsed.students && Array.isArray(parsed.students)) window.students = parsed.students;
+                    if (parsed.payments && Array.isArray(parsed.payments)) window.payments = parsed.payments;
+                    if (parsed.transactions && Array.isArray(parsed.transactions)) window.transactions = parsed.transactions;
+
+                    if (typeof window.syncWholeStateToFirestore === 'function') {
+                        window.syncWholeStateToFirestore();
+                    }
+                    window.showToast("Data berhasil dipulihkan dari cadangan JSON!");
                 } catch (err) {
-                    window.showToast("File JSON tidak valid!", true);
+                    window.showToast("File JSON rusak atau tidak kompatibel!", true);
                 }
             };
             if (event.target.files && event.target.files[0]) {
@@ -1131,15 +1150,7 @@
 
         window.openWhatsAppModal = function() {
             let totalKas = 0;
-            Object.values(window.kasPayments).forEach(yearData => {
-                if (yearData) {
-                    Object.values(yearData).forEach(s => {
-                        if (s) {
-                            Object.values(s).forEach(p => { if (p) totalKas += Number(window.settings.kasRate); });
-                        }
-                    });
-                }
-            });
+            window.payments.forEach(p => { totalKas += Number(p.amount); });
 
             let otherIn = 0, totalOut = 0;
             window.transactions.forEach(t => {
@@ -1162,16 +1173,17 @@
             msg += `-----------------------------------\n\n`;
             msg += `*Rincian Setoran Siswa (TA ${startY}/${endY}):*\n`;
 
-            const academicMonths = getAcademicMonths(window.currentTaStartYear);
+            const academicMonths = window.getAcademicMonths(window.currentTaStartYear);
             const sem1Months = academicMonths.filter(m => m.sem === 1);
             const sem2Months = academicMonths.filter(m => m.sem === 2);
+            const activeStudents = window.students.filter(s => s.active !== false);
 
-            window.students.forEach((st, i) => {
+            activeStudents.forEach((st, i) => {
                 let sem1Paid = 0;
                 let sem2Paid = 0;
-                sem1Months.forEach(m => { if (isKasPaid(st, m)) sem1Paid++; });
-                sem2Months.forEach(m => { if (isKasPaid(st, m)) sem2Paid++; });
-                msg += `${i+1}. ${st} : Sem1 (${sem1Paid}/6) | Sem2 (${sem2Paid}/6) [Total: ${sem1Paid+sem2Paid}/12 Lunas]\n`;
+                sem1Months.forEach(m => { if (window.findPayment(st.id, m.year, m.idx)) sem1Paid++; });
+                sem2Months.forEach(m => { if (window.findPayment(st.id, m.year, m.idx)) sem2Paid++; });
+                msg += `${i+1}. ${st.name} : Sem1 (${sem1Paid}/6) | Sem2 (${sem2Paid}/6) [Total: ${sem1Paid+sem2Paid}/12 Lunas]\n`;
             });
 
             msg += `\nCek rincian transparan di link berikut:\n${window.location.href}`;
@@ -1213,56 +1225,35 @@
             }
         };
 
-        window.askDeleteTransaction = function(index) {
-            document.getElementById('confirmTitle').innerText = "Hapus Transaksi";
-            document.getElementById('confirmMessage').innerText = "Apakah Anda yakin ingin menghapus catatan transaksi ini?";
-            confirmCallback = function() {
-                window.transactions.splice(index, 1);
-                window.persistData();
-                window.showToast("Catatan transaksi berhasil dihapus!");
-            };
-            document.getElementById('confirmModal').classList.remove('hidden');
-        };
-
-        window.askDeleteStudent = function(index) {
-            document.getElementById('confirmTitle').innerText = "Hapus Siswa";
-            document.getElementById('confirmMessage').innerText = `Hapus "${window.students[index]}" dari daftar kelas?`;
-            confirmCallback = function() {
-                window.students.splice(index, 1);
-                window.persistData();
-                window.showToast("Data siswa berhasil dihapus!");
-            };
-            document.getElementById('confirmModal').classList.remove('hidden');
-        };
-
         window.closeConfirmModal = function(result) {
             document.getElementById('confirmModal').classList.add('hidden');
             if (result && confirmCallback) confirmCallback();
             confirmCallback = null;
         };
 
-        window.openTransactionModal = function(editIndex = null) {
+        window.openTransactionModal = function(txId = null) {
             window.removeReceipt();
             
-            if (editIndex !== null && editIndex >= 0) {
-                editingTransactionIndex = editIndex;
-                const tx = window.transactions[editIndex];
-                document.getElementById('txType').value = tx.type;
-                document.getElementById('txCategory').value = tx.category;
-                document.getElementById('txAmount').value = tx.amount;
-                document.getElementById('txDesc').value = tx.desc || '';
-                document.getElementById('txDate').value = tx.date;
-                
-                if (tx.receipt) {
-                    currentReceiptBase64 = tx.receipt;
-                    document.getElementById('receiptPreviewImg').src = tx.receipt;
-                    document.getElementById('receiptPreviewContainer').classList.remove('hidden');
+            if (txId) {
+                editingTransactionId = txId;
+                const tx = window.transactions.find(t => t.id === txId);
+                if (tx) {
+                    document.getElementById('txType').value = tx.type;
+                    document.getElementById('txCategory').value = tx.category;
+                    document.getElementById('txAmount').value = tx.amount;
+                    document.getElementById('txDesc').value = tx.desc || '';
+                    document.getElementById('txDate').value = tx.date;
+                    
+                    if (tx.receipt) {
+                        currentReceiptBase64 = tx.receipt;
+                        document.getElementById('receiptPreviewImg').src = tx.receipt;
+                        document.getElementById('receiptPreviewContainer').classList.remove('hidden');
+                    }
                 }
-                
                 document.getElementById('txModalTitle').innerText = "Edit Transaksi";
                 document.getElementById('txSubmitBtn').innerText = "Simpan Perubahan";
             } else {
-                editingTransactionIndex = null;
+                editingTransactionId = null;
                 document.getElementById('txType').value = 'IN';
                 document.getElementById('txCategory').value = '';
                 document.getElementById('txAmount').value = '';
@@ -1278,31 +1269,8 @@
 
         window.closeTransactionModal = function() {
             window.removeReceipt();
-            editingTransactionIndex = null;
+            editingTransactionId = null;
             document.getElementById('transactionModal').classList.add('hidden');
-        };
-
-        window.saveTransaction = function(e) {
-            e.preventDefault();
-            const txData = {
-                type: document.getElementById('txType').value,
-                category: document.getElementById('txCategory').value,
-                amount: Number(document.getElementById('txAmount').value),
-                desc: document.getElementById('txDesc').value,
-                date: document.getElementById('txDate').value,
-                receipt: currentReceiptBase64 || null
-            };
-
-            if (editingTransactionIndex !== null && editingTransactionIndex >= 0) {
-                window.transactions[editingTransactionIndex] = txData;
-                window.showToast("Transaksi berhasil diperbarui!");
-            } else {
-                window.transactions.unshift(txData);
-                window.showToast("Transaksi baru berhasil dicatat!");
-            }
-
-            closeTransactionModal();
-            window.persistData();
         };
 
         window.openAddStudentModal = function() {
@@ -1313,18 +1281,6 @@
             document.getElementById('addStudentModal').classList.add('hidden');
         };
 
-        window.saveStudent = function(e) {
-            e.preventDefault();
-            const name = document.getElementById('studentNameInput').value.trim();
-            if (name) {
-                window.students.push(name);
-                document.getElementById('studentNameInput').value = '';
-                closeAddStudentModal();
-                window.persistData();
-                window.showToast(`Siswa "${name}" berhasil ditambahkan!`);
-            }
-        };
-
         window.openBulkStudentModal = function() {
             document.getElementById('bulkStudentModal').classList.remove('hidden');
             document.getElementById('bulkStudentInput').focus();
@@ -1333,22 +1289,6 @@
         window.closeBulkStudentModal = function() {
             document.getElementById('bulkStudentModal').classList.add('hidden');
             document.getElementById('bulkStudentInput').value = '';
-        };
-
-        window.saveBulkStudents = function(e) {
-            e.preventDefault();
-            const rawText = document.getElementById('bulkStudentInput').value;
-            const names = rawText
-                .split('\n')
-                .map(n => n.trim())
-                .filter(n => n.length > 0);
-
-            if (names.length > 0) {
-                window.students = window.students.concat(names);
-                closeBulkStudentModal();
-                window.persistData();
-                window.showToast(`Berhasil menambahkan ${names.length} siswa baru!`);
-            }
         };
 
         window.openSettingsModal = function() {
@@ -1362,28 +1302,18 @@
             document.getElementById('settingsModal').classList.add('hidden');
         };
 
-        window.saveSettings = function() {
-            window.settings.className = document.getElementById('settingClassName').value;
-            window.settings.kasRate = Number(document.getElementById('settingKasRate').value);
-            window.settings.treasurerPin = document.getElementById('settingPin').value;
-            closeSettingsModal();
-            window.persistData();
-            window.showToast("Pengaturan kas kelas berhasil disimpan!");
-        };
-
         /* Direct Initialization */
         window.onload = function() {
             window.updateUI();
         };
     </script>
 
-    <!-- Firebase Cloud Sync Integration Module -->
+    <!-- Firebase Cloud Modular Architecture Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        /* Embedded Firebase Config for Class 1A */
         const DEFAULT_FIREBASE_CONFIG = {
             apiKey: "AIzaSyA_m1j8cr4XCEqvkcRcf1_ZZ7vjLSB1fQs",
             authDomain: "kaskelas1a.firebaseapp.com",
@@ -1395,35 +1325,241 @@
 
         let db = null;
         let auth = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'kaskelas1a';
 
-        /* Push state directly to Firebase Cloud */
-        window.pushToCloud = async function() {
-            if (!db || !auth || !auth.currentUser) return;
+        /* Base Collections Paths */
+        const getColRef = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
+        const getDocRef = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+
+        /* Log action helper */
+        async function logAudit(action, details) {
+            if (!db) return;
             try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'kaskelas1a';
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kas_data', 'main');
-                await setDoc(docRef, {
-                    settings: window.settings,
-                    students: window.students,
-                    kasPayments: window.kasPayments,
-                    transactions: window.transactions,
-                    updatedAt: new Date().toISOString()
-                }, { merge: true });
-                if (typeof window.updateSyncBadge === 'function') {
-                    window.updateSyncBadge(true);
+                const logId = `log_${Date.now()}`;
+                const logRef = getDocRef('audit_logs', logId);
+                await setDoc(logRef, {
+                    id: logId,
+                    action: action,
+                    details: details,
+                    timestamp: new Date().toLocaleTimeString('id-ID')
+                });
+            } catch (e) { console.warn('Audit error', e); }
+        }
+
+        /* 1. Toggle Kas Payment Per Document (Atomic Write) */
+        window.toggleKas = async function(studentId, targetYear, monthIdx) {
+            if (!window.isAdmin || !db) return;
+            try {
+                const existingPay = window.findPayment(studentId, targetYear, monthIdx);
+                if (existingPay) {
+                    // Delete document if toggling off
+                    await deleteDoc(getDocRef('payments', existingPay.id));
+                    await logAudit("HAPUS_SETORAN", `Siswa: ${studentId}, TA: ${targetYear}, Bulan: ${monthIdx}`);
+                    window.showToast("Setoran kas dibatalkan.");
+                } else {
+                    // Create payment document storing nominal amount!
+                    const payId = `pay_${studentId}_${targetYear}_${monthIdx}`;
+                    await setDoc(getDocRef('payments', payId), {
+                        id: payId,
+                        studentId: studentId,
+                        academicYear: String(targetYear),
+                        monthIdx: monthIdx,
+                        amount: Number(window.settings.kasRate),
+                        paidAt: new Date().toISOString()
+                    });
+                    await logAudit("CATAT_SETORAN", `Siswa: ${studentId}, Nominal: Rp${window.settings.kasRate}`);
+                    window.showToast("Setoran kas berhasil dicatat!");
                 }
             } catch (err) {
-                console.warn('Cloud save error:', err);
-                if (typeof window.updateSyncBadge === 'function') {
-                    window.updateSyncBadge(false);
-                }
+                console.error('Toggle kas error:', err);
+                window.showToast("Gagal menyimpan setoran.", true);
             }
         };
 
-        /* Initialize Pure Firebase Cloud Sync */
-        async function initCloudSync() {
+        /* 2. Mark All Active Students for Selected Month */
+        window.markAllCurrentMonth = async function() {
+            if (!window.isAdmin || !db) return;
             try {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'kaskelas1a';
+                const now = new Date();
+                const monthIdx = now.getMonth();
+                const activeStudents = window.students.filter(s => s.active !== false);
+
+                let addedCount = 0;
+                for (const st of activeStudents) {
+                    const payId = `pay_${st.id}_${window.currentTaStartYear}_${monthIdx}`;
+                    if (!window.findPayment(st.id, window.currentTaStartYear, monthIdx)) {
+                        await setDoc(getDocRef('payments', payId), {
+                            id: payId,
+                            studentId: st.id,
+                            academicYear: String(window.currentTaStartYear),
+                            monthIdx: monthIdx,
+                            amount: Number(window.settings.kasRate),
+                            paidAt: new Date().toISOString()
+                        });
+                        addedCount++;
+                    }
+                }
+                await logAudit("CENTANG_SEMUA", `Menandai ${addedCount} siswa lunas`);
+                window.showToast(`Berhasil mencentang ${addedCount} siswa bulan ini!`);
+            } catch (e) {
+                window.showToast("Gagal mencentang otomatis.", true);
+            }
+        };
+
+        /* 3. Add / Edit Transaction Per Document */
+        window.saveTransaction = async function(e) {
+            e.preventDefault();
+            if (!db) return;
+
+            try {
+                const txId = editingTransactionId || `trx_${Date.now()}`;
+                const txData = {
+                    id: txId,
+                    type: document.getElementById('txType').value,
+                    category: document.getElementById('txCategory').value,
+                    amount: Number(document.getElementById('txAmount').value),
+                    desc: document.getElementById('txDesc').value,
+                    date: document.getElementById('txDate').value,
+                    receipt: currentReceiptBase64 || null,
+                    updatedAt: new Date().toISOString()
+                };
+
+                await setDoc(getDocRef('transactions', txId), txData);
+                await logAudit(editingTransactionId ? "EDIT_TRANSAKSI" : "TAMBAH_TRANSAKSI", `${txData.type}: Rp${txData.amount} (${txData.category})`);
+                
+                window.closeTransactionModal();
+                window.showToast(editingTransactionId ? "Transaksi diperbarui!" : "Transaksi baru dicatat!");
+            } catch (err) {
+                window.showToast("Gagal menyimpan transaksi.", true);
+            }
+        };
+
+        /* 4. Ask & Delete Transaction */
+        window.askDeleteTransaction = function(txId) {
+            document.getElementById('confirmTitle').innerText = "Hapus Transaksi";
+            document.getElementById('confirmMessage').innerText = "Apakah Anda yakin ingin menghapus catatan transaksi ini?";
+            confirmCallback = async function() {
+                try {
+                    await deleteDoc(getDocRef('transactions', txId));
+                    await logAudit("HAPUS_TRANSAKSI", `ID: ${txId}`);
+                    window.showToast("Catatan transaksi berhasil dihapus!");
+                } catch (e) {
+                    window.showToast("Gagal menghapus transaksi.", true);
+                }
+            };
+            document.getElementById('confirmModal').classList.remove('hidden');
+        };
+
+        /* 5. Add Single Student */
+        window.saveStudent = async function(e) {
+            e.preventDefault();
+            if (!db) return;
+            const name = document.getElementById('studentNameInput').value.trim();
+            if (!name) return;
+
+            try {
+                const stuId = `stu_${Date.now()}`;
+                await setDoc(getDocRef('students', stuId), {
+                    id: stuId,
+                    name: name,
+                    active: true,
+                    createdAt: new Date().toISOString()
+                });
+                await logAudit("TAMBAH_SISWA", `Nama: ${name}`);
+                document.getElementById('studentNameInput').value = '';
+                window.closeAddStudentModal();
+                window.showToast(`Siswa "${name}" berhasil ditambahkan!`);
+            } catch (e) {
+                window.showToast("Gagal menambah siswa.", true);
+            }
+        };
+
+        /* 6. Add Bulk Students */
+        window.saveBulkStudents = async function(e) {
+            e.preventDefault();
+            if (!db) return;
+            const rawText = document.getElementById('bulkStudentInput').value;
+            const names = rawText.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+
+            if (names.length === 0) return;
+
+            try {
+                for (const n of names) {
+                    const stuId = `stu_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+                    await setDoc(getDocRef('students', stuId), {
+                        id: stuId,
+                        name: n,
+                        active: true,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+                await logAudit("TAMBAH_SISWA_BANYAK", `Jumlah: ${names.length} siswa`);
+                window.closeBulkStudentModal();
+                window.showToast(`Berhasil menambahkan ${names.length} siswa baru!`);
+            } catch (e) {
+                window.showToast("Gagal menambahkan banyak siswa.", true);
+            }
+        };
+
+        /* 7. Soft Delete Student (Set active: false) */
+        window.askDeleteStudent = function(stuId) {
+            const st = window.students.find(s => s.id === stuId);
+            if (!st) return;
+            document.getElementById('confirmTitle').innerText = "Set Non-Aktifkan Siswa";
+            document.getElementById('confirmMessage').innerText = `Set status "${st.name}" menjadi Non-Aktif? (Data histori setoran tetap aman)`;
+            confirmCallback = async function() {
+                try {
+                    await setDoc(getDocRef('students', stuId), { active: false }, { merge: true });
+                    await logAudit("NONAKTIFKAN_SISWA", `Siswa: ${st.name}`);
+                    window.showToast(`Status "${st.name}" diubah menjadi Non-Aktif.`);
+                } catch (e) {
+                    window.showToast("Gagal mengubah status siswa.", true);
+                }
+            };
+            document.getElementById('confirmModal').classList.remove('hidden');
+        };
+
+        /* 8. Save Settings */
+        window.saveSettings = async function() {
+            if (!db) return;
+            try {
+                const newSettings = {
+                    className: document.getElementById('settingClassName').value,
+                    kasRate: Number(document.getElementById('settingKasRate').value),
+                    treasurerPin: document.getElementById('settingPin').value,
+                    schemaVersion: 2
+                };
+                await setDoc(getDocRef('settings', 'config'), newSettings, { merge: true });
+                await logAudit("UBAH_PENGATURAN", `Kas rate: Rp${newSettings.kasRate}`);
+                window.closeSettingsModal();
+                window.showToast("Pengaturan kas kelas berhasil disimpan!");
+            } catch (e) {
+                window.showToast("Gagal menyimpan pengaturan.", true);
+            }
+        };
+
+        /* 9. Correct reloadFromCloud (Pure READ ← Cloud) */
+        window.reloadFromCloud = function() {
+            if (typeof window.updateSyncBadge === 'function') window.updateSyncBadge(true);
+            window.updateUI();
+            window.showToast("Data terbaru berhasil dimuat ulang dari Firestore!");
+        };
+
+        /* 10. Sync Whole State (For JSON Import) */
+        window.syncWholeStateToFirestore = async function() {
+            if (!db) return;
+            try {
+                await setDoc(getDocRef('settings', 'config'), window.settings, { merge: true });
+                for (const s of window.students) await setDoc(getDocRef('students', s.id), s, { merge: true });
+                for (const p of window.payments) await setDoc(getDocRef('payments', p.id), p, { merge: true });
+                for (const t of window.transactions) await setDoc(getDocRef('transactions', t.id), t, { merge: true });
+                await logAudit("RESTORE_JSON", "Mengunggah data dari restore file JSON");
+            } catch (e) { console.warn("Batch sync failed", e); }
+        };
+
+        /* Firestore Real-Time Listeners */
+        async function initCloudEngine() {
+            try {
                 const app = initializeApp(DEFAULT_FIREBASE_CONFIG);
                 auth = getAuth(app);
                 db = getFirestore(app);
@@ -1434,50 +1570,58 @@
                     await signInAnonymously(auth);
                 }
 
-                if (!auth.currentUser) return;
-
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kas_data', 'main');
-
-                // Real-time listener strictly reading from Firebase Firestore
-                onSnapshot(docRef, (snapshot) => {
-                    if (snapshot.exists()) {
-                        const data = snapshot.data();
-                        if (data.settings) window.settings = { ...window.settings, ...data.settings };
-                        if (data.students && Array.isArray(data.students)) window.students = data.students;
-                        if (data.kasPayments) window.kasPayments = data.kasPayments;
-                        if (data.transactions && Array.isArray(data.transactions)) window.transactions = data.transactions;
+                // Settings Listener
+                onSnapshot(getDocRef('settings', 'config'), (docSnap) => {
+                    if (docSnap.exists()) {
+                        window.settings = { ...window.settings, ...docSnap.data() };
                     } else {
-                        /* First time setup in Firebase */
-                        window.pushToCloud();
+                        setDoc(getDocRef('settings', 'config'), window.settings);
                     }
-                    if (typeof window.updateSyncBadge === 'function') {
-                        window.updateSyncBadge(true);
-                    }
-                    if (typeof window.updateUI === 'function') {
-                        window.updateUI();
-                    }
-                }, (err) => {
-                    console.warn('Firestore Snapshot Warning:', err);
-                    if (typeof window.updateSyncBadge === 'function') {
-                        window.updateSyncBadge(false);
-                    }
-                    if (typeof window.updateUI === 'function') {
-                        window.updateUI();
-                    }
+                    window.updateUI();
                 });
 
-            } catch (e) {
-                console.warn('Firebase Initialization Fallback:', e);
-                if (typeof window.updateSyncBadge === 'function') {
-                    window.updateSyncBadge(false);
-                }
-                if (typeof window.updateUI === 'function') {
+                // Students Listener
+                onSnapshot(getColRef('students'), (querySnap) => {
+                    const list = [];
+                    querySnap.forEach(d => list.push(d.data()));
+                    if (list.length > 0) window.students = list;
                     window.updateUI();
-                }
+                });
+
+                // Payments Listener
+                onSnapshot(getColRef('payments'), (querySnap) => {
+                    const list = [];
+                    querySnap.forEach(d => list.push(d.data()));
+                    window.payments = list;
+                    window.updateUI();
+                });
+
+                // Transactions Listener
+                onSnapshot(getColRef('transactions'), (querySnap) => {
+                    const list = [];
+                    querySnap.forEach(d => list.push(d.data()));
+                    list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+                    window.transactions = list;
+                    window.updateUI();
+                });
+
+                // Audit Logs Listener
+                onSnapshot(getColRef('audit_logs'), (querySnap) => {
+                    const list = [];
+                    querySnap.forEach(d => list.push(d.data()));
+                    list.sort((a, b) => (b.id > a.id ? 1 : -1));
+                    window.auditLogs = list;
+                    renderAuditLogs();
+                });
+
+                window.updateSyncBadge(true);
+            } catch (e) {
+                console.warn('Firestore Init Warning:', e);
+                window.updateSyncBadge(false);
             }
         }
 
-        window.addEventListener('DOMContentLoaded', initCloudSync);
+        window.addEventListener('DOMContentLoaded', initCloudEngine);
     </script>
 </body>
 </html>
